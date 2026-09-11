@@ -1,9 +1,10 @@
 import './style.css';
 import confetti from 'canvas-confetti';
-import { WORKOUT_SPLITS, PONJIKKARA_QUOTES, FUNNY_TITLES } from './data.js';
+import { WORKOUT_SPLITS, PONJIKKARA_QUOTES, FUNNY_TITLES, CINEMA_REACTIONS, EASTER_EGGS } from './data.js';
 import { sound } from './audio.js';
 import { CharacterStage } from './character.js';
 import { GestureController } from './gesture.js';
+
 class PonjikkaraApp {
   constructor() {
     this.gestureController = null;
@@ -17,6 +18,11 @@ class PonjikkaraApp {
     this.isResting = false;
     this.restTimer = null;
     this.restSecondsRemaining = 10;
+    this.idleTimer = null;
+    this.lastPressTimestamp = 0;
+    this.rapidPressCount = 0;
+    this.toastTimeout = null;
+
     this.screenMenu = document.getElementById("screen-menu");
     this.screenPreview = document.getElementById("screen-preview");
     this.screenWorkout = document.getElementById("screen-workout");
@@ -36,6 +42,13 @@ class PonjikkaraApp {
     document.getElementById("nav-home-btn").addEventListener("click", () => {
       this.showScreen("menu");
     });
+    const heroQuickStart = document.getElementById("hero-quick-start-btn");
+    if (heroQuickStart) {
+      heroQuickStart.addEventListener("click", () => {
+        sound.playClick();
+        this.openSplitPreview("chest");
+      });
+    }
     const soundBtn = document.getElementById("sound-toggle-btn");
     const soundIcon = document.getElementById("sound-icon");
     const soundText = document.getElementById("sound-text");
@@ -102,14 +115,17 @@ class PonjikkaraApp {
       if (this.gestureController.isRunning) {
         this.gestureController.stopCamera();
         toggleCamText.textContent = "Enable Webcam";
+        if (webcamContainer) webcamContainer.classList.add("hidden");
       } else {
         toggleCamText.textContent = "Connecting...";
         try {
+          if (webcamContainer) webcamContainer.classList.remove("hidden");
           await this.gestureController.startCamera();
           toggleCamText.textContent = "Disable Webcam";
         } catch (err) {
           console.error("Camera startup failed:", err);
           toggleCamText.textContent = "Enable Webcam";
+          if (webcamContainer) webcamContainer.classList.add("hidden");
         }
       }
     });
@@ -132,45 +148,111 @@ class PonjikkaraApp {
       sound.playClick();
       this.showScreen("menu");
     });
+
+    // Malayalam Cinema Easter Eggs
+    const chayaBtn = document.getElementById("easter-egg-chaya");
+    if (chayaBtn) {
+      chayaBtn.addEventListener("click", () => {
+        sound.playClick();
+        this.showCinemaToast("☕", EASTER_EGGS.CHAYA);
+      });
+    }
+
+    const clapBtn = document.getElementById("easter-egg-clap");
+    if (clapBtn) {
+      clapBtn.addEventListener("click", () => {
+        sound.playClick();
+        this.showCinemaToast("🎬", EASTER_EGGS.CLAPBOARD);
+      });
+    }
+
+    const sealBtn = document.getElementById("easter-egg-seal");
+    if (sealBtn) {
+      sealBtn.addEventListener("click", () => {
+        sound.playClick();
+        this.showCinemaToast("🏆", EASTER_EGGS.SEAL, 4200);
+      });
+    }
+  }
+
+  showCinemaToast(icon, message, durationMs = 3200) {
+    const toast = document.getElementById("cinema-toast");
+    const toastIcon = document.getElementById("cinema-toast-icon");
+    const toastMsg = document.getElementById("cinema-toast-message");
+    if (!toast || !toastMsg) return;
+    toastIcon.textContent = icon;
+    toastMsg.textContent = message;
+    toast.classList.add("visible");
+    clearTimeout(this.toastTimeout);
+    this.toastTimeout = setTimeout(() => {
+      toast.classList.remove("visible");
+    }, durationMs);
+  }
+
+  updateCinemaReaction(text) {
+    const bubbleText = document.getElementById("cinema-reaction-text");
+    if (bubbleText) {
+      bubbleText.textContent = `"${text.replace(/^"|"$/g, '')}"`;
+      const container = document.getElementById("cinema-reaction-container");
+      if (container) {
+        container.classList.remove("animate-scale-in");
+        void container.offsetWidth;
+        container.classList.add("animate-scale-in");
+      }
+    }
+  }
+
+  resetIdleTimer() {
+    clearTimeout(this.idleTimer);
+    if (this.screenWorkout.classList.contains("hidden") || this.isResting) return;
+    this.idleTimer = setTimeout(() => {
+      if (!this.screenWorkout.classList.contains("hidden") && !this.isResting) {
+        const idleLines = CINEMA_REACTIONS.IDLE;
+        const randomIdle = idleLines[Math.floor(Math.random() * idleLines.length)];
+        this.updateCinemaReaction(randomIdle);
+      }
+    }, 6500);
   }
   renderMenuSplits() {
     const grid = document.getElementById("splits-grid");
     grid.innerHTML = "";
     Object.values(WORKOUT_SPLITS).forEach((split) => {
       const card = document.createElement("div");
-      card.className = "group relative p-6 rounded-2xl bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-amber-500/50 transition-all duration-300 shadow-xl flex flex-col justify-between cursor-pointer";
+      card.className = "group relative p-6 sm:p-7 rounded-3xl bg-white hover:bg-blue-50/20 border border-slate-200/80 hover:border-blue-400/80 transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between cursor-pointer";
       card.innerHTML = `
         <div class="space-y-4">
           <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <span class="text-3xl">${split.icon}</span>
+            <div class="flex items-center gap-3.5">
+              <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-2xl group-hover:scale-105 transition-transform">
+                ${split.icon}
+              </div>
               <div>
-                <h3 class="font-arcade text-lg sm:text-xl text-white group-hover:text-amber-400 transition">${split.name}</h3>
-                <span class="text-[11px] font-mono text-amber-500/80 uppercase font-bold tracking-wider">${split.badge} SPLIT</span>
+                <h3 class="font-extrabold text-lg sm:text-xl text-slate-900 group-hover:text-blue-600 transition">${split.name}</h3>
+                <span class="text-[11px] font-bold text-blue-600 uppercase tracking-wider">${split.badge} SPLIT</span>
               </div>
             </div>
-            <span class="text-xs px-2.5 py-1 rounded bg-slate-800 border border-slate-700 font-mono text-slate-300">
+            <span class="text-xs px-2.5 py-1 rounded-full bg-slate-100 font-semibold text-slate-600">
               3 EXERCISES
             </span>
           </div>
-          <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">${split.description}</p>
-          <div class="space-y-1.5 pt-2 border-t border-slate-800/80">
-            <span class="text-[10px] font-mono uppercase text-slate-500 font-bold">INCLUDED WORKOUTS:</span>
+          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">${split.description}</p>
+          <div class="space-y-1.5 pt-2 border-t border-slate-100">
+            <span class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">INCLUDED WORKOUTS:</span>
             <div class="space-y-1">
               ${split.workouts.map((w, idx) => `
-                <div class="text-xs text-slate-300 font-mono flex items-center gap-2">
-                  <span class="text-amber-400 font-bold">${idx + 1}.</span>
+                <div class="text-xs text-slate-600 font-medium flex items-center gap-2">
+                  <span class="text-blue-600 font-bold">${idx + 1}.</span>
                   <span>${w.name}</span>
                 </div>
               `).join("")}
             </div>
           </div>
         </div>
-        <div class="mt-6 pt-4 border-t border-slate-800/60 flex items-center justify-between">
-          <span class="text-xs font-mono text-slate-500 italic truncate max-w-[200px]">"${split.flavor}"</span>
-          <button class="px-4 py-2 rounded-xl bg-amber-500/10 group-hover:bg-amber-500 border border-amber-500/30 text-amber-400 group-hover:text-slate-950 font-arcade text-xs tracking-wider transition">
+        <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+          <span class="text-xs text-slate-400 italic truncate max-w-[200px]">"${split.flavor}"</span>
+          <span class="px-3.5 py-1.5 rounded-xl bg-blue-50 group-hover:bg-blue-600 text-blue-600 group-hover:text-white font-bold text-xs tracking-wide transition flex items-center gap-1">
             SELECT SPLIT →
-          </button>
+          </span>
         </div>
       `;
       card.addEventListener("click", () => {
@@ -190,20 +272,20 @@ class PonjikkaraApp {
     list.innerHTML = "";
     this.currentSplit.workouts.forEach((w, idx) => {
       const row = document.createElement("div");
-      row.className = "flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm";
+      row.className = "flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 hover:bg-slate-50 border border-slate-200/60 text-sm transition";
       row.innerHTML = `
-        <div class="flex items-center gap-3">
-          <div class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 font-arcade text-xs flex items-center justify-center">
+        <div class="flex items-center gap-3.5">
+          <div class="w-8 h-8 rounded-xl bg-blue-100/70 text-blue-700 font-extrabold text-xs flex items-center justify-center">
             ${idx + 1}
           </div>
           <div>
-            <div class="font-bold text-white">${w.name}</div>
-            <div class="text-xs text-slate-500 font-mono">${w.equipment}</div>
+            <div class="font-bold text-slate-900 text-sm sm:text-base">${w.name}</div>
+            <div class="text-xs text-slate-500 font-medium">${w.equipment}</div>
           </div>
         </div>
         <div class="text-right">
-          <span class="text-xs font-mono text-amber-400 block font-bold">3 SETS × 12 REPS</span>
-          <span class="text-[10px] font-mono text-slate-400">${w.target}</span>
+          <span class="text-xs font-extrabold text-blue-600 block">3 SETS × 12 REPS</span>
+          <span class="text-[11px] text-slate-400 font-medium">${w.target}</span>
         </div>
       `;
       list.appendChild(row);
@@ -228,6 +310,8 @@ class PonjikkaraApp {
     document.getElementById("workout-instruction").textContent = workout.instruction;
     this.characterStage.setWorkout(workout);
     this.updateWorkoutUI();
+    this.updateCinemaReaction(`ആക്ഷൻ! Spacebar അടിച്ച് ${workout.name} തുടങ്ങിക്കോളൂ.`);
+    this.resetIdleTimer();
   }
   handleRepPress() {
     if (this.isResting) return;
@@ -244,12 +328,40 @@ class PonjikkaraApp {
     this.characterStage.triggerRep(this.currentRep, grunt);
     this.updateWorkoutUI();
     this.updateGlobalRepCounter();
+
+    // Contextual Malayalam Cinema Reaction
+    const now = Date.now();
+    if (now - this.lastPressTimestamp < 160) {
+      this.rapidPressCount++;
+    } else {
+      this.rapidPressCount = 0;
+    }
+    this.lastPressTimestamp = now;
+
+    if (this.rapidPressCount >= 4) {
+      const spamLines = CINEMA_REACTIONS.SPAM;
+      this.updateCinemaReaction(spamLines[Math.floor(Math.random() * spamLines.length)]);
+    } else if (this.currentRep === 1) {
+      const lines = CINEMA_REACTIONS.FIRST_REP;
+      this.updateCinemaReaction(lines[Math.floor(Math.random() * lines.length)]);
+    } else if (this.currentRep === 6) {
+      const lines = CINEMA_REACTIONS.MID_SET;
+      this.updateCinemaReaction(lines[Math.floor(Math.random() * lines.length)]);
+    } else if (this.currentRep === 11) {
+      const lines = CINEMA_REACTIONS.PENULTIMATE;
+      this.updateCinemaReaction(lines[Math.floor(Math.random() * lines.length)]);
+    }
+    this.resetIdleTimer();
+
     if (this.currentRep >= 12) {
       this.handleSetFinished();
     }
   }
   handleSetFinished() {
     this.isResting = true;
+    clearTimeout(this.idleTimer);
+    const lines = CINEMA_REACTIONS.SET_DONE;
+    this.updateCinemaReaction(lines[Math.floor(Math.random() * lines.length)]);
     if (this.currentSet >= 3) {
       sound.playExerciseDone();
       setTimeout(() => {
@@ -291,6 +403,8 @@ class PonjikkaraApp {
     this.updateWorkoutUI();
     const quote = PONJIKKARA_QUOTES[Math.floor(Math.random() * PONJIKKARA_QUOTES.length)];
     document.getElementById("coach-flavor-quote").textContent = quote;
+    this.updateCinemaReaction(`സെറ്റ് ${this.currentSet} ആരംഭിക്കുന്നു. ആക്ഷൻ! ⚡`);
+    this.resetIdleTimer();
   }
   openExerciseDoneModal() {
     const workout = this.currentSplit.workouts[this.workoutIndex];
@@ -347,17 +461,17 @@ class PonjikkaraApp {
       const chip = document.getElementById(`chip-set-${s}`);
       const statusText = chip.querySelector(".status-text");
       if (s < this.currentSet) {
-        chip.className = "p-2.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-center";
-        statusText.textContent = "COMPLETED";
-        statusText.className = "text-xs font-bold text-emerald-400 status-text";
+        chip.className = "flex-1 py-1.5 px-3 rounded-full border border-emerald-500/50 bg-emerald-50 text-center transition";
+        statusText.textContent = "DONE";
+        statusText.className = "text-[10px] font-bold text-emerald-600 status-text ml-1";
       } else if (s === this.currentSet) {
-        chip.className = "p-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-center";
+        chip.className = "flex-1 py-1.5 px-3 rounded-full border border-blue-500 bg-blue-50 text-center transition";
         statusText.textContent = "ACTIVE";
-        statusText.className = "text-xs font-bold text-amber-400 status-text";
+        statusText.className = "text-[10px] font-bold text-blue-600 status-text ml-1";
       } else {
-        chip.className = "p-2.5 rounded-lg border border-slate-800 bg-slate-950 text-center opacity-60";
+        chip.className = "flex-1 py-1.5 px-3 rounded-full border border-slate-200 bg-slate-50 text-center opacity-60 transition";
         statusText.textContent = "WAITING";
-        statusText.className = "text-xs font-bold text-slate-400 status-text";
+        statusText.className = "text-[10px] font-medium text-slate-400 status-text ml-1";
       }
     }
     const cals = (this.sessionReps * 0.0001).toFixed(4);
@@ -391,6 +505,8 @@ class PonjikkaraApp {
       this.gestureController.stopCamera();
       const toggleCamText = document.getElementById("toggle-camera-text");
       if (toggleCamText) toggleCamText.textContent = "Enable Webcam";
+      const webcamContainer = document.getElementById("webcam-container");
+      if (webcamContainer) webcamContainer.classList.add("hidden");
     }
 
     window.scrollTo({ top: 0, behavior: "smooth" });

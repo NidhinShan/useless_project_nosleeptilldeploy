@@ -1,4 +1,5 @@
 import { FilesetResolver, GestureRecognizer } from "@mediapipe/tasks-vision";
+import { CAMERA_CINEMA_LINES } from "./data.js";
 
 export class GestureController {
   /**
@@ -41,9 +42,9 @@ export class GestureController {
   async init() {
     if (this.recognizer) return;
 
-    this.updateStatus("LOADING AI...", "bg-amber-500/20 text-amber-400 border-amber-500/30");
+    this.updateStatus("LOADING AI...", "bg-blue-50 text-blue-600 border-blue-200");
     if (this.overlay) {
-      this.overlay.textContent = "Loading AI vision model...";
+      this.overlay.textContent = "AI ആലോചിച്ചു കൊണ്ടിരിക്കുകയാണ്...";
       this.overlay.classList.remove("hidden");
     }
 
@@ -62,11 +63,11 @@ export class GestureController {
         numHands: 1
       });
 
-      this.updateStatus("MODEL READY", "bg-emerald-500/20 text-emerald-400 border-emerald-500/30");
+      this.updateStatus("MODEL READY", "bg-emerald-50 text-emerald-700 border-emerald-200");
     } catch (err) {
       console.error("Failed to initialize GestureRecognizer:", err);
-      this.updateStatus("LOAD ERROR", "bg-red-500/20 text-red-400 border-red-500/30");
-      if (this.overlay) this.overlay.textContent = "Failed to load model.";
+      this.updateStatus("LOAD ERROR", "bg-rose-50 text-rose-700 border-rose-200");
+      if (this.overlay) this.overlay.textContent = "സിസ്റ്റത്തിനും ചെറിയൊരു confusion ഉണ്ട്.";
       throw err;
     }
   }
@@ -91,18 +92,18 @@ export class GestureController {
       if (this.video) this.video.classList.remove("hidden");
       if (this.overlay) {
         this.overlay.classList.remove("hidden");
-        this.overlay.textContent = "🔍 Show hand to start";
+        this.overlay.textContent = CAMERA_CINEMA_LINES.START;
       }
 
       this.isRunning = true;
       this.state = "SEARCHING";
-      this.updateStatus("ACTIVE 🟢", "bg-emerald-500/20 text-emerald-400 border-emerald-500/30");
+      this.updateStatus("ACTIVE 🟢", "bg-emerald-50 text-emerald-700 border-emerald-200 font-bold");
 
       this.detectLoop();
     } catch (err) {
       console.error("Failed to start webcam:", err);
-      this.updateStatus("CAM BLOCKED", "bg-red-500/20 text-red-400 border-red-500/30");
-      if (this.overlay) this.overlay.textContent = "Camera blocked. Use Spacebar!";
+      this.updateStatus("CAM BLOCKED", "bg-rose-50 text-rose-700 border-rose-200");
+      if (this.overlay) this.overlay.textContent = CAMERA_CINEMA_LINES.BLOCKED;
       this.stopCamera();
       throw err;
     }
@@ -135,7 +136,7 @@ export class GestureController {
     }
 
     this.state = "SEARCHING";
-    this.updateStatus("OFF", "bg-slate-800 text-slate-400 border-slate-700");
+    this.updateStatus("OFF", "bg-slate-100 text-slate-500 border-slate-200");
   }
 
   detectLoop() {
@@ -160,7 +161,7 @@ export class GestureController {
       this.fistFramesCount = 0;
       if (this.state !== "SEARCHING") {
         this.state = "SEARCHING";
-        if (this.overlay) this.overlay.textContent = "🔍 Show hand to resume";
+        if (this.overlay) this.overlay.textContent = CAMERA_CINEMA_LINES.NO_HAND;
       }
       return;
     }
@@ -187,7 +188,7 @@ export class GestureController {
         this.lastRepTimestamp = now;
 
         if (this.overlay) {
-          this.overlay.textContent = "✊ REP! Iron Lifted! 🔥";
+          this.overlay.textContent = CAMERA_CINEMA_LINES.REP_PUMP;
         }
 
         this.triggerFlashEffect();
@@ -197,11 +198,11 @@ export class GestureController {
         }
       } else if (this.state === "PUMPED") {
         if (this.overlay) {
-          this.overlay.textContent = "✊ Open hand ✋ to reset next rep";
+          this.overlay.textContent = CAMERA_CINEMA_LINES.PUMPED_WAIT;
         }
       } else if (this.state === "SEARCHING") {
         if (this.overlay) {
-          this.overlay.textContent = "✋ Open hand first to prepare";
+          this.overlay.textContent = CAMERA_CINEMA_LINES.READY;
         }
       }
     } else {
@@ -212,7 +213,7 @@ export class GestureController {
       if (this.openFramesCount >= 2) {
         this.state = "READY";
         if (this.overlay) {
-          this.overlay.textContent = "✋ READY! Clench fist ✊ to rep!";
+          this.overlay.textContent = CAMERA_CINEMA_LINES.READY;
         }
       }
     }
@@ -229,6 +230,6 @@ export class GestureController {
   updateStatus(text, classes) {
     if (!this.statusBadge) return;
     this.statusBadge.textContent = text;
-    this.statusBadge.className = `text-[10px] font-mono px-2 py-0.5 rounded border transition-colors ${classes}`;
+    this.statusBadge.className = `text-[10px] font-mono px-2.5 py-0.5 rounded-full border transition-colors ${classes}`;
   }
 }

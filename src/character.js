@@ -78,10 +78,10 @@ export class CharacterStage {
         break;
     }
     this.container.innerHTML = `
-      <div class="gym-stage relative w-full h-80 sm:h-96 flex items-center justify-center select-none overflow-hidden bg-gradient-to-b from-slate-900 to-slate-950 rounded-2xl border border-amber-500/20 shadow-2xl">
-        <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.08)_0%,transparent_70%)] pointer-events-none"></div>
-        <div class="absolute bottom-0 inset-x-0 h-16 bg-slate-900/80 border-t border-slate-800 flex items-center justify-center text-xs tracking-widest text-slate-600 uppercase font-mono">
-          PONJIKKARA IRON GYM FLOOR • MECHANICAL KEYBOARD DIVISION
+      <div class="gym-stage relative w-full h-80 sm:h-96 flex items-center justify-center select-none overflow-hidden bg-gradient-to-b from-slate-50 via-blue-50/20 to-white rounded-3xl border border-slate-200/80 shadow-sm">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(37,99,235,0.06)_0%,transparent_70%)] pointer-events-none"></div>
+        <div class="absolute bottom-0 inset-x-0 h-12 bg-white/85 backdrop-blur-sm border-t border-slate-100 flex items-center justify-center text-[11px] tracking-wider text-slate-400 font-semibold uppercase font-mono">
+          PONJIKKARA IRON GYM • KEYBOARD FITNESS DIVISION
         </div>
         <div class="sweat-zone absolute inset-0 pointer-events-none z-30"></div>
         <div class="grunt-zone absolute inset-0 pointer-events-none z-30"></div>
@@ -155,7 +155,7 @@ export class CharacterStage {
   getPushUpSVG() {
     return `
       <svg class="w-72 h-72 sm:w-84 sm:h-84" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <line x1="40" y1="320" x2="360" y2="320" stroke="#f59e0b" stroke-width="4" stroke-dasharray="10 6" />
+        <line x1="40" y1="320" x2="360" y2="320" stroke="#93c5fd" stroke-width="4" stroke-dasharray="10 6" />
         <g class="pushup-body-group">
           <circle cx="80" cy="310" r="10" fill="#3b82f6" />
           <path d="M 85 305 L 260 230" stroke="#3b82f6" stroke-width="26" stroke-linecap="round" />
@@ -173,7 +173,7 @@ export class CharacterStage {
   getSquatSVG() {
     return `
       <svg class="w-72 h-72 sm:w-84 sm:h-84" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <line x1="50" y1="340" x2="350" y2="340" stroke="#334155" stroke-width="6" />
+        <line x1="50" y1="340" x2="350" y2="340" stroke="#e2e8f0" stroke-width="6" />
         <g class="squat-body-group">
           <rect x="40" y="150" width="320" height="12" rx="4" fill="#94a3b8" />
           <rect x="50" y="105" width="18" height="100" rx="5" fill="#ef4444" stroke="#7f1d1d" stroke-width="2" />
@@ -199,7 +199,7 @@ export class CharacterStage {
   getBackWorkoutSVG() {
     return `
       <svg class="w-72 h-72 sm:w-84 sm:h-84" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <line x1="50" y1="340" x2="350" y2="340" stroke="#334155" stroke-width="6" />
+        <line x1="50" y1="340" x2="350" y2="340" stroke="#e2e8f0" stroke-width="6" />
         <g class="deadlift-group">
           <circle cx="200" cy="120" r="24" fill="#fcd34d" />
           <rect x="180" y="103" width="40" height="8" rx="3" fill="#ef4444" />
@@ -225,7 +225,7 @@ export class CharacterStage {
   getArmWorkoutSVG() {
     return `
       <svg class="w-72 h-72 sm:w-84 sm:h-84" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <line x1="50" y1="340" x2="350" y2="340" stroke="#334155" stroke-width="6" />
+        <line x1="50" y1="340" x2="350" y2="340" stroke="#e2e8f0" stroke-width="6" />
         <g class="lifter-arms-stage">
           <circle cx="200" cy="115" r="24" fill="#fcd34d" />
           <rect x="180" y="98" width="40" height="8" rx="3" fill="#ef4444" />
