@@ -18,6 +18,7 @@
   "author": "Ponjikkara Team",
   "license": "MIT",
   "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.14",
     "canvas-confetti": "^1.9.4"
   },
   "devDependencies": {

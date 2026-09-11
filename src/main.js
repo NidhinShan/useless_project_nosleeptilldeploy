@@ -3,8 +3,10 @@ import confetti from 'canvas-confetti';
 import { WORKOUT_SPLITS, PONJIKKARA_QUOTES, FUNNY_TITLES } from './data.js';
 import { sound } from './audio.js';
 import { CharacterStage } from './character.js';
+import { GestureController } from './gesture.js';
 class PonjikkaraApp {
   constructor() {
+    this.gestureController = null;
     this.currentSplitKey = "chest";
     this.currentSplit = WORKOUT_SPLITS.chest;
     this.workoutIndex = 0;
@@ -72,6 +74,44 @@ class PonjikkaraApp {
     window.addEventListener("keyup", (e) => {
       if (e.code === "Space") {
         tapBtn.classList.remove("pressed");
+      }
+    });
+
+    const toggleCamBtn = document.getElementById("toggle-camera-btn");
+    const webcamContainer = document.getElementById("webcam-container");
+    const toggleCamText = document.getElementById("toggle-camera-text");
+
+    this.gestureController = new GestureController({
+      videoElement: document.getElementById("webcam-feed"),
+      containerElement: webcamContainer,
+      statusBadgeElement: document.getElementById("gesture-status-badge"),
+      overlayElement: document.getElementById("gesture-overlay"),
+      onRepTriggered: () => {
+        if (!this.screenWorkout.classList.contains("hidden") && !this.isResting) {
+          tapBtn.classList.add("pressed");
+          setTimeout(() => tapBtn.classList.remove("pressed"), 180);
+          this.handleRepPress();
+        }
+      }
+    });
+
+    toggleCamBtn.addEventListener("click", async () => {
+      sound.playClick();
+      if (this.gestureController.isRunning) {
+        this.gestureController.stopCamera();
+        webcamContainer.classList.add("hidden");
+        toggleCamText.textContent = "Enable";
+      } else {
+        webcamContainer.classList.remove("hidden");
+        toggleCamText.textContent = "Connecting...";
+        try {
+          await this.gestureController.startCamera();
+          toggleCamText.textContent = "Disable";
+        } catch (err) {
+          console.error("Camera startup failed:", err);
+          toggleCamText.textContent = "Enable";
+          webcamContainer.classList.add("hidden");
+        }
       }
     });
     document.getElementById("next-set-btn").addEventListener("click", () => {
@@ -347,6 +387,15 @@ class PonjikkaraApp {
       this.screenVictory.classList.remove("hidden");
       exitBtn.classList.add("hidden");
     }
+
+    if (screenName !== "workout" && this.gestureController && this.gestureController.isRunning) {
+      this.gestureController.stopCamera();
+      const webcamContainer = document.getElementById("webcam-container");
+      if (webcamContainer) webcamContainer.classList.add("hidden");
+      const toggleCamText = document.getElementById("toggle-camera-text");
+      if (toggleCamText) toggleCamText.textContent = "Enable";
+    }
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
   openModal(modal) {
