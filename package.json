@@ -1,0 +1,29 @@
+{
+  "name": "ponjikkara-virtual-gym",
+  "version": "1.0.0",
+  "description": "PONJIKKARA - The Useless Virtual Gym built for Makethon",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "virtual-gym",
+    "useless-project",
+    "makethon",
+    "ponjikkara",
+    "gamification"
+  ],
+  "author": "Ponjikkara Team",
+  "license": "MIT",
+  "dependencies": {
+    "canvas-confetti": "^1.9.4"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "vite": "^6.0.5"
+  }
+}
