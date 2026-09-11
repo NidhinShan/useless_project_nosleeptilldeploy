@@ -86,7 +86,6 @@ class PonjikkaraApp {
       containerElement: webcamContainer,
       statusBadgeElement: document.getElementById("gesture-status-badge"),
       overlayElement: document.getElementById("gesture-overlay"),
-      gaugeFillElement: document.getElementById("curl-gauge-fill"),
       onRepTriggered: () => {
         if (!this.screenWorkout.classList.contains("hidden") && !this.isResting) {
           tapBtn.classList.add("pressed");

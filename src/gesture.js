@@ -7,15 +7,13 @@ export class GestureController {
    * @param {HTMLElement} config.containerElement
    * @param {HTMLElement} config.statusBadgeElement
    * @param {HTMLElement} config.overlayElement
-   * @param {HTMLElement} [config.gaugeFillElement]
    * @param {Function} config.onRepTriggered
    */
-  constructor({ videoElement, containerElement, statusBadgeElement, overlayElement, gaugeFillElement, onRepTriggered }) {
+  constructor({ videoElement, containerElement, statusBadgeElement, overlayElement, onRepTriggered }) {
     this.video = videoElement;
     this.container = containerElement;
     this.statusBadge = statusBadgeElement;
     this.overlay = overlayElement;
-    this.gaugeFill = gaugeFillElement;
     this.onRepTriggered = onRepTriggered;
 
     this.recognizer = null;
@@ -23,16 +21,12 @@ export class GestureController {
     this.isRunning = false;
     this.animationFrameId = null;
 
-    // Gym Rep State Machine: 'SEARCHING' -> 'ARM_DOWN' -> 'ARM_UP'
+    // Gym Rep State Machine: 'SEARCHING' -> 'READY' -> 'PUMPED'
     this.state = "SEARCHING";
     this.lastRepTimestamp = 0;
-    this.minRepCooldownMs = 380; // Minimum time between reps
-
-    // Vertical curl motion tracking (normalized Y coords: 0 top, 1 bottom)
-    this.baselineBottomY = 0.58;
-    this.baselineTopY = 0.36;
-    this.smoothedHandY = null;
-    this.fistFramesCount = 0;
+    this.minRepCooldownMs = 350; // Minimum time between reps
+    this.openFramesCount = 0; // Debounce for open hand
+    this.fistFramesCount = 0; // Debounce for fist detection
   }
 
   async init() {
@@ -84,9 +78,8 @@ export class GestureController {
 
       this.isRunning = true;
       this.state = "SEARCHING";
-      this.smoothedHandY = null;
       this.updateStatus("ACTIVE 🟢", "bg-emerald-500/20 text-emerald-400 border-emerald-500/30");
-      if (this.overlay) this.overlay.textContent = "🔍 Show open hand ✋ in frame";
+      if (this.overlay) this.overlay.textContent = "🔍 Show your hand in frame";
 
       this.detectLoop();
     } catch (err) {
@@ -115,12 +108,7 @@ export class GestureController {
       this.video.srcObject = null;
     }
 
-    if (this.gaugeFill) {
-      this.gaugeFill.style.height = "0%";
-    }
-
     this.state = "SEARCHING";
-    this.smoothedHandY = null;
     this.updateStatus("OFF", "bg-slate-800 text-slate-400 border-slate-700");
     if (this.overlay) this.overlay.textContent = "Camera disabled";
   }
@@ -132,6 +120,7 @@ export class GestureController {
       try {
         const now = performance.now();
         const results = this.recognizer.recognizeForVideo(this.video, now);
+
         this.handleResults(results);
       } catch (err) {
         console.warn("Gesture recognition frame error:", err);
@@ -142,121 +131,68 @@ export class GestureController {
   }
 
   handleResults(results) {
-    const hasHand = results.landmarks && results.landmarks.length > 0;
-
-    if (!hasHand) {
+    if (!results.gestures || results.gestures.length === 0) {
+      this.openFramesCount = 0;
       this.fistFramesCount = 0;
-      if (this.gaugeFill) this.gaugeFill.style.height = "0%";
-
       if (this.state !== "SEARCHING") {
         this.state = "SEARCHING";
-        if (this.overlay) this.overlay.textContent = "🔍 Show open hand ✋ to start curling";
+        if (this.overlay) this.overlay.textContent = "🔍 Show hand to resume";
       }
       return;
     }
 
-    const landmarks = results.landmarks[0];
-    const wrist = landmarks[0];
-    const middleMcp = landmarks[9];
-    const middleTip = landmarks[12];
+    const topGesture = results.gestures[0][0];
+    const category = topGesture.categoryName;
+    const score = topGesture.score;
 
-    // Hand vertical center in normalized frame (0 = top, 1 = bottom)
-    const rawHandY = (wrist.y + middleMcp.y) / 2;
-    if (this.smoothedHandY === null) {
-      this.smoothedHandY = rawHandY;
-    } else {
-      this.smoothedHandY = this.smoothedHandY * 0.45 + rawHandY * 0.55;
-    }
-    const handY = this.smoothedHandY;
-
-    // Check categorized gestures
-    let category = "None";
-    let score = 0;
-    if (results.gestures && results.gestures.length > 0 && results.gestures[0].length > 0) {
-      category = results.gestures[0][0].categoryName;
-      score = results.gestures[0][0].score;
-    }
-
-    // Hand landmark checks: open hand has fingertips extended outward from wrist
-    const tipDist = Math.hypot(middleTip.x - wrist.x, middleTip.y - wrist.y);
-    const mcpDist = Math.hypot(middleMcp.x - wrist.x, middleMcp.y - wrist.y);
-    const isExtendedFingers = tipDist > mcpDist * 1.25;
-    const isCategoryFist = category === "Closed_Fist" && score > 0.6;
-    const isOpenHand = isExtendedFingers && !isCategoryFist;
-
-    // Dynamically adapt baseline if hand is held lower down
-    if (handY > this.baselineBottomY) {
-      this.baselineBottomY = Math.min(0.78, handY);
-      this.baselineTopY = Math.max(0.20, this.baselineBottomY - 0.22);
-    }
-
-    // Calculate vertical curl progress (0 = arm down/extended, 1 = curled up)
-    const curlRange = Math.max(0.16, this.baselineBottomY - this.baselineTopY);
-    let progress = (this.baselineBottomY - handY) / curlRange;
-    progress = Math.max(0, Math.min(1, progress));
-    const progressPercent = Math.round(progress * 100);
-
-    if (this.gaugeFill) {
-      this.gaugeFill.style.height = `${progressPercent}%`;
+    if (score < 0.55) {
+      return;
     }
 
     const now = Date.now();
 
-    // 1. OPEN-HAND BICEP CURL LOGIC
-    // Hand lowered down -> Ready to curl
-    if (progress <= 0.32 || handY >= this.baselineBottomY - 0.05) {
-      if (this.state !== "ARM_DOWN") {
-        this.state = "ARM_DOWN";
-        this.fistFramesCount = 0;
-      }
-      if (this.overlay) {
-        this.overlay.textContent = isOpenHand
-          ? "✋ Open Hand Down - Now Curl UP! 💪"
-          : "⬇️ Hand Down - Now Curl UP! 💪";
-      }
-    }
-    // Hand curled up to top of motion
-    else if (progress >= 0.72) {
-      if (this.state === "ARM_DOWN" && (now - this.lastRepTimestamp > this.minRepCooldownMs)) {
-        this.state = "ARM_UP";
-        this.lastRepTimestamp = now;
-
-        if (this.overlay) {
-          this.overlay.textContent = isOpenHand
-            ? "💪 OPEN-HAND CURL! PEAK PUMP! 🔥"
-            : "💪 BICEP CURL REP! PUMPED! 🔥";
-        }
-
-        this.triggerFlashEffect();
-        if (this.onRepTriggered) this.onRepTriggered();
-      } else if (this.state === "ARM_UP") {
-        if (this.overlay) {
-          this.overlay.textContent = "⬇️ Lower hand back down for next curl";
-        }
-      }
-    }
-    else {
-      // In mid-curl transit
-      if (this.state === "ARM_DOWN" && this.overlay) {
-        this.overlay.textContent = isOpenHand
-          ? "✋ Curling up... Keep going! ⬆️"
-          : "⬆️ Pull it all the way up!";
-      }
-    }
-
-    // 2. ALSO SUPPORT CLENCHED FIST PUMP
-    if (isCategoryFist) {
+    // Hand is clenched into a fist or flexing pump
+    if (category === "Closed_Fist" || category === "Thumb_Up") {
       this.fistFramesCount++;
+      this.openFramesCount = 0;
+
       if (
-        this.state !== "ARM_UP" &&
+        this.state === "READY" &&
         this.fistFramesCount >= 2 &&
-        (now - this.lastRepTimestamp > this.minRepCooldownMs)
+        now - this.lastRepTimestamp > this.minRepCooldownMs
       ) {
-        this.state = "ARM_UP";
+        // Trigger Rep!
+        this.state = "PUMPED";
         this.lastRepTimestamp = now;
-        if (this.overlay) this.overlay.textContent = "✊ FIST PUMP REP! IRON CRUSHED! 🔥";
+
+        if (this.overlay) {
+          this.overlay.textContent = "✊ REP! Ponjikkara Iron Lifted!";
+        }
+
         this.triggerFlashEffect();
-        if (this.onRepTriggered) this.onRepTriggered();
+
+        if (this.onRepTriggered) {
+          this.onRepTriggered();
+        }
+      } else if (this.state === "PUMPED") {
+        if (this.overlay) {
+          this.overlay.textContent = "✊ Open hand ✋ to prepare next rep";
+        }
+      } else if (this.state === "SEARCHING") {
+        if (this.overlay) {
+          this.overlay.textContent = "✋ Open hand first to prepare rep";
+        }
+      }
+    } else {
+      // Hand is open / relaxed (Open_Palm, Pointing_Up, Victory, None, etc.)
+      this.openFramesCount++;
+      this.fistFramesCount = 0;
+
+      if (this.openFramesCount >= 2) {
+        this.state = "READY";
+        if (this.overlay) {
+          this.overlay.textContent = "✋ READY! Clench fist ✊ to rep!";
+        }
       }
     }
   }
